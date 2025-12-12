@@ -1,0 +1,187 @@
+---
+title: "ESS523a Final Assignment"
+author: "Arian Brazenwood"
+date: "2025-12-10"
+output: 
+  html_document:
+    theme: spacelab
+    code_folding: hide
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+## Readme Introduction
+
+This R markdown document takes ecophysiological data collected via a
+LICOR 600 unit at a common garden of eight common species of urban tree
+at the CSU spur campus and creates some exploratory data visualization
+figures for presenting at my PhD committee meeting I had back in
+September. This document essentially has three steps: Load the data,
+prepare the data, and generate the figures.
+
+## Loading the Data
+
+First we'll load a setup script which creates a package load function
+and loads all packages needed by this rmarkdown document. Then we'll
+bring in the data. The data has been placed in the \data folder of this
+R Project, but the file path can be replaced with wherever future data
+might be stored. The data is collected as two files - nighttime
+measurements and daytime measurements. Each tree has a unique number and
+identical column headers, so both of this .csv files will be read in and
+then row bind them to make a combined dataset.
+
+```{r, results = "hide"}
+source("Setup_Script.R")
+
+grove_day <- read_csv("data/Grove_Data_Day.csv")
+grove_night <- read_csv("data/Grove_Data_Night.csv")
+
+grove <- rbind(grove_day, grove_night)
+
+```
+
+## Preparing the Data
+
+This LICOR Data set has many measurements that we don't explicitly need
+and some of the instrument's names for variables are not what these
+variables are referred to as in the ecophysiology literature. In this
+section, the code will take only the columns relevant to the figures I
+want to make, rename those columns to remove the instrument syntax for
+those column names, and then pivot them into a long form so that
+multiple variables can be graphed at once.
+
+```{r}
+
+grove %>%
+  select(Tree_num,
+         Species,
+         meas_time,
+         meas_loc,
+         gsw,
+         E_apparent,
+         VPDleaf,
+         PhiPS2,
+         Tleaf,
+         Qamb) %>%
+  rename(
+    Stomatal_Conductance = gsw,
+    Est_Evapotranspiration = E_apparent,
+    Florescence = PhiPS2,
+    Light_Intensity = Qamb,
+    Leaf_Temperature = Tleaf,
+    Leaf_VPD = VPDleaf
+  ) %>%
+  pivot_longer(
+    -c(Tree_num, Species, meas_time, meas_loc),
+    names_to = "type",
+    values_to = "value"
+  ) -> grove_long
+
+```
+
+## Creating the Exploratory Figures
+
+In this final section of this Rmarkdown document, we will use our
+cleaned and prepared data to create a suite of exploratory figures that
+try to tease apart the relationship between Florescence (the main
+response variable that is a good proxy for plant stress) by species of
+tree. Figures for subtotal conductance and Est_Evapotransipiration will
+be generated as well as these are strong co-variates with the primary
+response variable. Leaf Temperature and Vapor pressure deficit will also
+be graphed by species to understand if there are some general patterns
+between these species or not.
+
+All measurements collected during the hottest week of the year. The
+third week of July should capture the most amount of heat stress
+associated with these plants, so any species related differences in
+vigor should be observable from this data set. All these trees have been
+given the same irrigation in the preceding four months and these trees
+are all within the same \~100m\^2 field, so they should all be
+experiencing the same climactic conditions as well. These trees are all
+roughly the same size/age as well, so species based differences should
+really be the only driver for observable differences in the primary and
+secondary response variables.
+
+```{r}
+
+#Boxplot of Florescence by Species comparing top of leaf and bottom of leaf measurements.
+grove_long %>%
+  filter(type == "Florescence") %>%
+  ggplot() +
+  geom_boxplot(aes(x = Species, y = value, color = meas_loc)) +
+  theme_classic() +
+  labs(
+    title = "Florescence by Species",
+    x = "Species",
+    y = "Florescence",
+    color = "Measurement Location"
+  )
+
+
+#Evapostranspiration boxplots by species and time of measurements
+grove_long %>%
+  filter(type == "Est_Evapotranspiration") %>%
+  ggplot() +
+  geom_boxplot(aes(x = meas_time, y = value, color = Species)) +
+  theme_classic() +
+  labs(
+    title = "FEvapostranspiration by Species and Time of Measurement",
+    x = "Time of Measurement",
+    y = "Evapotranspiration",
+    color = "Species"
+  )
+
+
+#Stomatal Conductance boxplots by species and time of measurements
+grove_long %>%
+  filter(type == "Stomatal_Conductance") %>%
+  ggplot() +
+  geom_boxplot(aes(x = meas_time, y = value, color = Species)) +
+  theme_classic() +
+  labs(
+    title = "Stomatal Conductance by Species and Time of Measurement",
+    x = "Time of Measurement",
+    y = "Stomatal Conductance",
+    color = "Species"
+  )
+
+
+#Leaf Temperature relationships by species and time of measurements
+grove_long %>%
+  filter(type == "Leaf_Temperature") %>%
+  ggplot() +
+  geom_boxplot(aes(x = meas_time, y = value, color = Species)) +
+  theme_classic() +
+  labs(
+    title = "Leaf Temperature by Species and Time of Measurement",
+    x = "Time of Measurement",
+    y = "Leaf Temperature",
+    color = "Species"
+  )
+
+
+#Leaf Vapor Pressure Deficit relationships by species and time of measurements
+grove_long %>%
+  filter(type == "Leaf_VPD") %>%
+  ggplot() +
+  geom_boxplot(aes(x = meas_time, y = value, color = Species)) +
+  theme_classic() +
+  labs(
+    title = "Leaf Vapor Pressure Deficit by Species and Time of Measurement",
+    x = "Time of Measurement",
+    y = "Leaf VPD",
+    color = "Species"
+  )
+
+```
+
+## Conclusion
+
+These five figures capture initial exploration of the range of variation
+of these physiological traits in relation to the eight considered urban
+tree species.
